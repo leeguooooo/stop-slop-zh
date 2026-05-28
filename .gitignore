@@ -1,0 +1,19 @@
+# Claude Code / OMC local state
+.claude/
+.omc/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp
+*.tmp
+*.log
