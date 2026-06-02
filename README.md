@@ -20,17 +20,35 @@
 
 ```
 .
-├── SKILL.md              核心：8 条改写规则 + 5 维评分 + 工作流
+├── SKILL.md              核心：9 条改写规则 + 5 维评分 + 工作流
 ├── README.md             本文件
+├── CHANGELOG.md          套话黑名单的更新记录
 └── references/
     ├── phrases.md        12 类禁用词汇黑名单（约 200 条）
     ├── structures.md     15 类句式套路（含三件套 / 名词化 / 抽象主语等）
-    └── examples.md       4 个场景 7 组 Before/After 改写示例
+    ├── punctuation.md    标点指纹（破折号 / 省略号 / 感叹号 / 双引号）
+    └── examples.md       4 个场景 6 组 Before/After 改写示例
 ```
 
 ## 怎么用
 
-### 方式 1：Claude Code（推荐）
+### 方式 1：一行安装（推荐）
+
+支持 [skills CLI](https://www.skills.sh) 的客户端（Claude Code 等），一行装好：
+
+```bash
+npx skills add leeguooooo/stop-slop-zh
+```
+
+装到全局：
+
+```bash
+npx skills add leeguooooo/stop-slop-zh -g
+```
+
+安装后，写中文 / 改稿 / 审稿时 Claude 会按 description 自动触发本 Skill；SKILL.md 和 `references/` 一并装好，无需手动 `cd`。
+
+### 方式 2：手动放进 skills 目录
 
 把整个目录放到 Claude Code 能扫到的 skills 路径下，或直接 `cd` 到本目录后，第一句对话告诉 Claude：
 
@@ -38,13 +56,13 @@
 
 Claude 会自动读取 SKILL.md 和 references。
 
-### 方式 2：Claude Projects / ChatGPT Projects
+### 方式 3：Claude Projects / ChatGPT Projects
 
 把 `SKILL.md` 和 `references/*.md` 全部上传到 Project 的知识库。然后在系统提示或第一句对话里写：
 
-> 你扮演中文 AI 味消除助手。所有改写任务都要遵循 SKILL.md 中的 8 条规则与 5 维评分。模糊时优先查 references/phrases.md 和 references/structures.md。
+> 你扮演中文 AI 味消除助手。所有改写任务都要遵循 SKILL.md 中的 9 条规则与 5 维评分。模糊时优先查 references/phrases.md 和 references/structures.md。
 
-### 方式 3：单次 API 调用 / Cherry Studio / 其他客户端
+### 方式 4：单次 API 调用 / Cherry Studio / 其他客户端
 
 把 `SKILL.md` 全文塞进系统提示。`references/*.md` 可以按需放入，或拼成一个长 prompt。
 
@@ -61,7 +79,7 @@ Claude 会自动读取 SKILL.md 和 references。
 用户输入：[待改写文本]
 ```
 
-### 方式 4：作为人工校稿清单
+### 方式 5：作为人工校稿清单
 
 不接 LLM 也能用。`SKILL.md` 第四节"交付前清单"是 9 条人工查的项目，写完文章对着清单走一遍。
 
