@@ -25,7 +25,7 @@
 ├── CHANGELOG.md          套话黑名单的更新记录
 └── references/
     ├── phrases.md        14 类禁用词汇黑名单（含英译洋腔 / 无名归因）
-    ├── structures.md     15 类句式套路（含三件套 / 名词化 / 抽象主语等）
+    ├── structures.md     16 类句式套路（含三件套 / 名词化 / 抽象主语 / 标题套路等）
     ├── punctuation.md    标点指纹（破折号 / 省略号 / 感叹号 / 双引号）
     └── examples.md       4 个场景 6 组 Before/After 改写示例
 ```
