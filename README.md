@@ -20,12 +20,12 @@
 
 ```
 .
-├── SKILL.md              核心：9 条改写规则 + 5 维评分 + 工作流
+├── SKILL.md              核心：10 条改写规则 + 5 维评分 + 工作流
 ├── README.md             本文件
 ├── CHANGELOG.md          套话黑名单的更新记录
 └── references/
-    ├── phrases.md        14 类禁用词汇黑名单（含英译洋腔 / 无名归因）
-    ├── structures.md     16 类句式套路（含三件套 / 名词化 / 抽象主语 / 标题套路等）
+    ├── phrases.md        15 类禁用词汇黑名单（含英译洋腔 / 无名归因 / 评级悬念词）
+    ├── structures.md     18 类句式套路（含三件套 / 抽象主语 / 标题套路 / 评级悬念开头 / 转述腔等）
     ├── punctuation.md    标点指纹（破折号 / 省略号 / 感叹号 / 双引号）
     └── examples.md       4 个场景 6 组 Before/After 改写示例
 ```
@@ -60,7 +60,7 @@ Claude 会自动读取 SKILL.md 和 references。
 
 把 `SKILL.md` 和 `references/*.md` 全部上传到 Project 的知识库。然后在系统提示或第一句对话里写：
 
-> 你扮演中文 AI 味消除助手。所有改写任务都要遵循 SKILL.md 中的 9 条规则与 5 维评分。模糊时优先查 references/phrases.md 和 references/structures.md。
+> 你扮演中文 AI 味消除助手。所有改写任务都要遵循 SKILL.md 中的 10 条规则与 5 维评分。模糊时优先查 references/phrases.md 和 references/structures.md。
 
 ### 方式 4：单次 API 调用 / Cherry Studio / 其他客户端
 
@@ -81,7 +81,7 @@ Claude 会自动读取 SKILL.md 和 references。
 
 ### 方式 5：作为人工校稿清单
 
-不接 LLM 也能用。`SKILL.md` 第四节"交付前清单"是 9 条人工查的项目，写完文章对着清单走一遍。
+不接 LLM 也能用。`SKILL.md` 第四节"交付前清单"是逐条人工查的项目，写完文章对着清单走一遍。
 
 ## 用法建议
 
