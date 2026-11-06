@@ -4,6 +4,12 @@
 
 新词收录标准：在三篇不同来源（不同模型 / 不同 prompt / 不同作者）的 AI 输出里都出现过，才进黑名单。避免误伤个人风格。
 
+## v1.3.0（2026-11-06）
+
+### 新增
+
+- **`stop-slop candidates --shots <file|->`**：口播模式抽语义层候选，输入同 `detect --shots`。每条候选带 `shot`，段间接口（cohesion）另带 `prev_shot`，`meta.mode` 为 `spoken`。给 motion-use 的 `script review --focus voice` 判衔接连环用，不用先把旁白导出成文本文件。
+
 ## v1.2.0（2026-11-06）
 
 ### 新增
