@@ -1,0 +1,23 @@
+[package]
+name = "stop-slop"
+version = "1.0.0"
+edition = "2021"
+license = "MIT"
+description = "中文 AI 写作痕迹检测（stop-slop-zh 配套 CLI，只检测不改写）"
+repository = "https://github.com/leeguooooo/stop-slop-zh"
+readme = "../README.md"
+
+[[bin]]
+name = "stop-slop"
+path = "src/main.rs"
+
+[dependencies]
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
