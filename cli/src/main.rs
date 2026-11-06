@@ -13,6 +13,7 @@ const USAGE: &str = "stop-slop —— 中文 AI 写作痕迹检测（只检测�
 
 用法：
   stop-slop detect <文件或目录> [--json] [--max-hits N]
+  stop-slop detect --shots <shots.json|-> [--json] [--max-hits N]
   stop-slop candidates <文件> [--out 路径]
   stop-slop compare <改前> <改后> [--json]
   stop-slop --version
@@ -20,6 +21,9 @@ const USAGE: &str = "stop-slop —— 中文 AI 写作痕迹检测（只检测�
 detect      分级报告：A 机械改 / B 建议改 / F 标点指纹 / C 只报告 / X 慎改 / H 人审
 candidates  抽语义层候选 JSON（rename / cohesion / colon / iso3），交给模型按判据填标签
 compare     改前改后各检测一遍，输出 Markdown 对比表
+
+--shots     口播模式：输入 JSON 数组 [{id, text}, ...]（'-' 读 stdin），
+            每个镜头当一段正文检测，命中带 shot 字段；默认列出全部命中
 
 目录会递归读取 .md / .txt。规则说明见 https://github.com/leeguooooo/stop-slop-zh";
 
@@ -80,16 +84,58 @@ fn load(target: &str) -> Result<Vec<Doc>, String> {
 struct Opts {
     pos: Vec<String>,
     json: bool,
-    max_hits: usize,
+    max_hits: Option<usize>,
     out: Option<String>,
+    shots: Option<String>,
+}
+
+/// 口播模式输入：镜头旁白列表。
+#[derive(serde::Deserialize)]
+struct Shot {
+    id: String,
+    text: String,
+}
+
+/// 把镜头拼成一篇 Markdown：每个镜头一段，返回文档和「段首行号 → 镜头 id」表。
+fn shots_doc(src: &str) -> Result<(Doc, Vec<(usize, String)>), String> {
+    let shots: Vec<Shot> =
+        serde_json::from_str(src).map_err(|e| format!("--shots 不是 [{{id, text}}] 数组：{e}"))?;
+    let mut md = String::new();
+    let mut starts = Vec::new();
+    let mut line = 1usize;
+    for s in shots {
+        // 旁白里的换行并成一段；去掉会被当成标题 / 列表 / 引用 / 表格的行首符号
+        let t = s.text.split_whitespace().collect::<Vec<_>>().join(" ");
+        let t = t.trim_start_matches(['#', '>', '|', '-', '*', '+', ' ']);
+        if t.is_empty() {
+            continue;
+        }
+        starts.push((line, s.id));
+        md.push_str(t);
+        md.push_str("\n\n");
+        line += 2;
+    }
+    if starts.is_empty() {
+        return Err("--shots 里没有非空旁白".into());
+    }
+    Ok((Doc::parse("shots", &md), starts))
+}
+
+fn shot_of(starts: &[(usize, String)], line: usize) -> Option<String> {
+    starts
+        .iter()
+        .rev()
+        .find(|(l, _)| *l <= line)
+        .map(|(_, id)| id.clone())
 }
 
 fn parse(args: &[String]) -> Result<Opts, String> {
     let mut o = Opts {
         pos: Vec::new(),
         json: false,
-        max_hits: 5,
+        max_hits: None,
         out: None,
+        shots: None,
     };
     let mut it = args.iter();
     while let Some(a) = it.next() {
@@ -97,8 +143,9 @@ fn parse(args: &[String]) -> Result<Opts, String> {
             "--json" => o.json = true,
             "--max-hits" => {
                 let v = it.next().ok_or("--max-hits 需要一个数字")?;
-                o.max_hits = v.parse().map_err(|_| format!("--max-hits 不是数字：{v}"))?;
+                o.max_hits = Some(v.parse().map_err(|_| format!("--max-hits 不是数字：{v}"))?);
             }
+            "--shots" => o.shots = Some(it.next().ok_or("--shots 需要 JSON 文件路径或 -")?.clone()),
             "--out" | "-o" => o.out = Some(it.next().ok_or("--out 需要路径")?.clone()),
             s if s.starts_with("--") => return Err(format!("未知参数：{s}")),
             _ => o.pos.push(a.clone()),
@@ -124,11 +171,35 @@ fn run() -> Result<(), String> {
         }
         "detect" => {
             let o = parse(&args[1..])?;
-            let [target] = o.pos.as_slice() else {
-                return Err("用法：stop-slop detect <文件或目录> [--json] [--max-hits N]".into());
+            let r = if let Some(src) = &o.shots {
+                if !o.pos.is_empty() {
+                    return Err("--shots 和文件参数只能二选一".into());
+                }
+                let raw = if src == "-" {
+                    let mut b = String::new();
+                    std::io::Read::read_to_string(&mut std::io::stdin(), &mut b)
+                        .map_err(|e| format!("读取 stdin 失败：{e}"))?;
+                    b
+                } else {
+                    std::fs::read_to_string(src).map_err(|e| format!("读取 {src} 失败：{e}"))?
+                };
+                let (doc, starts) = shots_doc(&raw)?;
+                let mut r = rules::detect(&[doc], o.max_hits.unwrap_or(usize::MAX));
+                r.meta.mode = "spoken".into();
+                for item in &mut r.items {
+                    for h in &mut item.hits {
+                        h.shot = shot_of(&starts, h.line);
+                    }
+                }
+                r
+            } else {
+                let [target] = o.pos.as_slice() else {
+                    return Err(
+                        "用法：stop-slop detect <文件或目录> [--json] [--max-hits N]".into(),
+                    );
+                };
+                rules::detect(&load(target)?, o.max_hits.unwrap_or(5))
             };
-            let docs = load(target)?;
-            let r = rules::detect(&docs, o.max_hits);
             if o.json {
                 println!("{}", serde_json::to_string_pretty(&r).unwrap());
             } else {
@@ -294,5 +365,20 @@ mod tests {
         miss("> 不是技术，而是认知。", "R2");
         miss("| 不是技术，而是认知 |", "R2");
         miss("`不是技术，而是认知`", "R2");
+    }
+
+    #[test]
+    fn shots_map_hits_to_shot_ids() {
+        let src = r##"[{"id":"hook","text":"你看这辆车。"},{"id":"empty","text":"  "},{"id":"rule","text":"# 这不是技术，\n而是认知。"}]"##;
+        let (doc, starts) = crate::shots_doc(src).unwrap();
+        let r = crate::rules::detect(&[doc], usize::MAX);
+        let item = r.items.iter().find(|i| i.id == "R2").unwrap();
+        assert_eq!(item.count, 1);
+        assert_eq!(
+            crate::shot_of(&starts, item.hits[0].line).as_deref(),
+            Some("rule")
+        );
+        assert_eq!(starts.len(), 2);
+        assert!(crate::shots_doc("{}").is_err());
     }
 }
