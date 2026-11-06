@@ -15,6 +15,7 @@ const USAGE: &str = "stop-slop —— 中文 AI 写作痕迹检测（只检测�
   stop-slop detect <文件或目录> [--json] [--max-hits N]
   stop-slop detect --shots <shots.json|-> [--json] [--max-hits N]
   stop-slop candidates <文件> [--out 路径]
+  stop-slop candidates --shots <shots.json|-> [--out 路径]
   stop-slop compare <改前> <改后> [--json]
   stop-slop --version
 
@@ -121,6 +122,17 @@ fn shots_doc(src: &str) -> Result<(Doc, Vec<(usize, String)>), String> {
     Ok((Doc::parse("shots", &md), starts))
 }
 
+fn read_input(src: &str) -> Result<String, String> {
+    if src == "-" {
+        let mut b = String::new();
+        std::io::Read::read_to_string(&mut std::io::stdin(), &mut b)
+            .map_err(|e| format!("读取 stdin 失败：{e}"))?;
+        Ok(b)
+    } else {
+        std::fs::read_to_string(src).map_err(|e| format!("读取 {src} 失败：{e}"))
+    }
+}
+
 fn shot_of(starts: &[(usize, String)], line: usize) -> Option<String> {
     starts
         .iter()
@@ -175,15 +187,7 @@ fn run() -> Result<(), String> {
                 if !o.pos.is_empty() {
                     return Err("--shots 和文件参数只能二选一".into());
                 }
-                let raw = if src == "-" {
-                    let mut b = String::new();
-                    std::io::Read::read_to_string(&mut std::io::stdin(), &mut b)
-                        .map_err(|e| format!("读取 stdin 失败：{e}"))?;
-                    b
-                } else {
-                    std::fs::read_to_string(src).map_err(|e| format!("读取 {src} 失败：{e}"))?
-                };
-                let (doc, starts) = shots_doc(&raw)?;
+                let (doc, starts) = shots_doc(&read_input(src)?)?;
                 let mut r = rules::detect(&[doc], o.max_hits.unwrap_or(usize::MAX));
                 r.meta.mode = "spoken".into();
                 for item in &mut r.items {
@@ -209,14 +213,40 @@ fn run() -> Result<(), String> {
         }
         "candidates" => {
             let o = parse(&args[1..])?;
-            let [target] = o.pos.as_slice() else {
-                return Err("用法：stop-slop candidates <文件> [--out 路径]".into());
+            let c = if let Some(src) = &o.shots {
+                if !o.pos.is_empty() {
+                    return Err("--shots 和文件参数只能二选一".into());
+                }
+                let (doc, starts) = shots_doc(&read_input(src)?)?;
+                let mut c = candidates::extract(&doc);
+                c.meta["mode"] = "spoken".into();
+                for v in c
+                    .rename
+                    .iter_mut()
+                    .chain(c.cohesion.iter_mut())
+                    .chain(c.colon.iter_mut())
+                    .chain(c.iso3.iter_mut())
+                {
+                    if let Some(line) = v["line"].as_u64() {
+                        let line = line as usize;
+                        v["shot"] = shot_of(&starts, line).into();
+                        if v["type"] == "cohesion" {
+                            // 接口在两个镜头之间：上一个镜头是接口行之前最近的那个
+                            v["prev_shot"] = shot_of(&starts, line.saturating_sub(1)).into();
+                        }
+                    }
+                }
+                c
+            } else {
+                let [target] = o.pos.as_slice() else {
+                    return Err("用法：stop-slop candidates <文件> [--out 路径]".into());
+                };
+                if !Path::new(target).is_file() {
+                    return Err("candidates 只接受单个文件".into());
+                }
+                let docs = load(target)?;
+                candidates::extract(&docs[0])
             };
-            if !Path::new(target).is_file() {
-                return Err("candidates 只接受单个文件".into());
-            }
-            let docs = load(target)?;
-            let c = candidates::extract(&docs[0]);
             let s = serde_json::to_string_pretty(&c).unwrap();
             match o.out {
                 Some(p) => {
@@ -380,5 +410,13 @@ mod tests {
         );
         assert_eq!(starts.len(), 2);
         assert!(crate::shots_doc("{}").is_err());
+    }
+
+    #[test]
+    fn shot_of_handles_boundaries() {
+        let starts = vec![(1, "a".to_string()), (3, "b".to_string())];
+        assert_eq!(crate::shot_of(&starts, 0), None);
+        assert_eq!(crate::shot_of(&starts, 2).as_deref(), Some("a"));
+        assert_eq!(crate::shot_of(&starts, 3).as_deref(), Some("b"));
     }
 }
