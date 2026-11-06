@@ -20,13 +20,16 @@
 
 ```
 .
-├── SKILL.md              核心：10 条改写规则 + 5 维评分 + 工作流
+├── SKILL.md              核心：14 条改写规则 + 证据标签 + 改写纪律 + 慎改清单 + 5 维评分
 ├── README.md             本文件
 ├── CHANGELOG.md          套话黑名单的更新记录
+├── install.sh            stop-slop 检测器一行安装脚本
+├── cli/                  stop-slop 检测器源码（Rust）
 └── references/
     ├── phrases.md        15 类禁用词汇黑名单（含英译洋腔 / 无名归因 / 评级悬念词）
-    ├── structures.md     18 类句式套路（含三件套 / 抽象主语 / 标题套路 / 评级悬念开头 / 转述腔等）
-    ├── punctuation.md    标点指纹（破折号 / 省略号 / 感叹号 / 双引号）
+    ├── structures.md     20 类句式套路（含三件套 / 抽象主语 / 标题套路 / 评级悬念开头 / 转述腔 / 翻译腔 / 衔接连环等）
+    ├── punctuation.md    标点指纹（破折号 / 分号 / 省略号 / 感叹号 / 双引号）
+    ├── semantic.md       语义层判据（同义重命名 / 衔接连环 / 冒号分类 / 高度同构三连）
     └── examples.md       4 个场景 6 组 Before/After 改写示例
 ```
 
@@ -79,6 +82,20 @@ Claude 会自动读取 SKILL.md 和 references。
 用户输入：[待改写文本]
 ```
 
+### 检测器（可选）
+
+`stop-slop` 是配套的命令行检测器，只检测不改写，按 SKILL.md 的规则编号输出分级报告。单文件二进制，从 GitHub Release 下载：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/leeguooooo/stop-slop-zh/main/install.sh | sh
+
+stop-slop detect 稿子.md
+stop-slop candidates 稿子.md --out c.json   # 语义层候选，配合 references/semantic.md
+stop-slop compare 改前.md 改后.md
+```
+
+默认装到 `~/.local/bin`，可用 `STOP_SLOP_INSTALL_DIR` 改目录、`STOP_SLOP_VERSION=v1.0.0` 指定版本。Windows 到 [Releases](https://github.com/leeguooooo/stop-slop-zh/releases) 下载 zip。也可以从源码装：`cargo install --path cli`。
+
 ### 方式 5：作为人工校稿清单
 
 不接 LLM 也能用。`SKILL.md` 第四节"交付前清单"是逐条人工查的项目，写完文章对着清单走一遍。
@@ -116,6 +133,8 @@ Claude 会自动读取 SKILL.md 和 references。
 - 你试过本 Skill 但发现没盖到的场景
 
 ## 致谢
+
+- [larashero3-dotcom/lieflat-less-ai-tone](https://github.com/larashero3-dotcom/lieflat-less-ai-tone)：中文 AI 写作特征的两轮实测（629 篇对照 + 270 对同题配对）。本项目的证据标签、规则 11–14、改写纪律、慎改清单和语义层判据都参考了它公开的研究结论。该项目以 CC BY-NC 4.0 发布，本项目没有复制它的文本和代码：规则说明是重写的，`stop-slop` 检测器是独立的 Rust 实现，只引用了它公开的统计数字
 
 - [hardikpandya/stop-slop](https://github.com/hardikpandya/stop-slop)：英文版项目，提供了三层架构（词汇黑名单 / 句式模式 / 评分量规）的设计思路
 - Anthropic Skill 规范：本项目按 Claude Skill 标准组织文件结构
