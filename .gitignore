@@ -17,3 +17,6 @@ desktop.ini
 # Temp
 *.tmp
 *.log
+
+# Rust CLI build output
+cli/target/
