@@ -65,6 +65,9 @@ pub struct Hit {
     pub file: String,
     pub line: usize,
     pub excerpt: String,
+    /// 口播模式（--shots）下命中所在的镜头 id
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shot: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -97,6 +100,8 @@ pub struct Structure {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Meta {
+    /// "text"（文章）或 "spoken"（--shots 口播）
+    pub mode: String,
     pub files: usize,
     pub han: usize,
     pub paragraphs: usize,
@@ -555,6 +560,7 @@ impl Acc {
             file: file.to_string(),
             line,
             excerpt,
+            shot: None,
         });
     }
     fn take(&mut self, id: &str) -> Vec<Hit> {
@@ -920,6 +926,7 @@ pub fn detect(docs: &[Doc], max_hits: usize) -> Report {
     Report {
         version: env!("CARGO_PKG_VERSION").to_string(),
         meta: Meta {
+            mode: "text".into(),
             files: docs.len(),
             han,
             paragraphs,

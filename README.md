@@ -92,6 +92,7 @@ curl -fsSL https://raw.githubusercontent.com/leeguooooo/stop-slop-zh/main/instal
 stop-slop detect 稿子.md
 stop-slop candidates 稿子.md --out c.json   # 语义层候选，配合 references/semantic.md
 stop-slop compare 改前.md 改后.md
+stop-slop detect --shots shots.json --json  # 视频旁白 / 口播：[{"id":"hook","text":"…"}]，命中带镜头 id
 ```
 
 默认装到 `~/.local/bin`，可用 `STOP_SLOP_INSTALL_DIR` 改目录、`STOP_SLOP_VERSION=v1.0.0` 指定版本。Windows 到 [Releases](https://github.com/leeguooooo/stop-slop-zh/releases) 下载 zip。也可以从源码装：`cargo install --path cli`。

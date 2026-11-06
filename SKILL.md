@@ -429,6 +429,7 @@ curl -fsSL https://raw.githubusercontent.com/leeguooooo/stop-slop-zh/main/instal
 stop-slop detect 稿子.md              # 分级报告：A 机械改 / B 建议改 / C 只报告 / F 指纹 / X 慎改 / H 人审
 stop-slop candidates 稿子.md --out c.json   # 抽语义层候选，按 references/semantic.md 逐条判
 stop-slop compare 改前.md 改后.md     # 改前改后指标对照
+stop-slop detect --shots shots.json --json   # 口播模式：[{"id","text"}] 每个镜头一段，命中带镜头 id
 ```
 
 用法约定：
