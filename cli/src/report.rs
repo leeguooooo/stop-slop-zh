@@ -89,6 +89,14 @@ pub fn text(r: &Report) -> String {
             if let Some(e) = &i.evidence {
                 let _ = writeln!(o, "    依据：{e}");
             }
+            if let Some([h, a]) = i.hc3 {
+                if i.flagged && h >= 5.0 {
+                    let _ = writeln!(
+                        o,
+                        "    误报参考：HC3 人类回答里 {h:.1}% 的篇目也到了这条线（GPT-3.5 {a:.1}%），命中不代表是 AI 写的"
+                    );
+                }
+            }
             for h in &i.hits {
                 let _ = writeln!(o, "    · {}:{}  {}", h.file, h.line, h.excerpt);
             }
