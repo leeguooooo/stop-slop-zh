@@ -4,7 +4,7 @@
 
 这是一套提示词 Skill，给 Claude / GPT / Gemini / 文心 / 通义 / DeepSeek 等模型用，识别并消除中文 AI 写作的典型痕迹：套话、排比三件套、名词化动词、抽象主语、金句收尾、总分总八股。
 
-灵感来自 [hardikpandya/stop-slop](https://github.com/hardikpandya/stop-slop) 英文项目，但**不是翻译**——中文 AI 味跟英文 AI 味的指纹完全不一样，整套规则、词表、句式、评分都是为中文重做的。
+灵感来自 [hardikpandya/stop-slop](https://github.com/hardikpandya/stop-slop) 英文项目。中文 AI 味跟英文的指纹完全不一样，规则、词表、句式和评分都是为中文重新做的，没有照着英文翻。
 
 ---
 
@@ -20,10 +20,11 @@
 
 ```
 .
-├── SKILL.md              核心：14 条改写规则 + 技术文档 / 回复专项 + 改写纪律 + 慎改清单 + 5 维评分
+├── SKILL.md              核心：14 条改写规则 + 技术文档 / 回复专项 + 改写纪律 + 慎改清单 + 5 维评分（自查用）
 ├── README.md             本文件
 ├── CHANGELOG.md          套话黑名单的更新记录
 ├── install.sh            stop-slop 检测器一行安装脚本
+├── tests/                改稿保真回归用例（不检测 AI 味，查有没有改坏原意）
 ├── cli/                  stop-slop 检测器源码（Rust）
 └── references/
     ├── phrases.md        18 类禁用词汇黑名单（含英译洋腔 / 无名归因 / 评级悬念词 / 回复类客套）
@@ -55,7 +56,7 @@ npx skills add leeguooooo/stop-slop-zh -g
 
 把整个目录放到 Claude Code 能扫到的 skills 路径下，或直接 `cd` 到本目录后，第一句对话告诉 Claude：
 
-> 请按 SKILL.md 的规则改写下面这段中文。改完后给五维打分。
+> 请按 SKILL.md 的规则改写下面这段中文。
 
 Claude 会自动读取 SKILL.md 和 references。
 
@@ -63,7 +64,7 @@ Claude 会自动读取 SKILL.md 和 references。
 
 把 `SKILL.md` 和 `references/*.md` 全部上传到 Project 的知识库。然后在系统提示或第一句对话里写：
 
-> 你扮演中文 AI 味消除助手。所有改写任务都要遵循 SKILL.md 中的 10 条规则与 5 维评分。模糊时优先查 references/phrases.md 和 references/structures.md。
+> 你扮演中文 AI 味消除助手。所有改写任务都要遵循 SKILL.md 的规则和改写纪律。模糊时优先查 references/phrases.md 和 references/structures.md。
 
 ### 方式 4：单次 API 调用 / Cherry Studio / 其他客户端
 
@@ -76,8 +77,8 @@ Claude 会自动读取 SKILL.md 和 references。
 
 [此处粘贴 SKILL.md 全文]
 
-每次改写后，按五维评分（直/实/变/散/真，每维 1-10）打分，
-低于 35/50 重写直到达标。
+改稿时意思不变优先于去 AI 味：数字、限定、时态、归因和作者判断都要保留，
+原文没有的事实不要补。只输出改好的终稿。
 
 用户输入：[待改写文本]
 ```
@@ -91,10 +92,12 @@ curl -fsSL https://raw.githubusercontent.com/leeguooooo/stop-slop-zh/main/instal
 
 stop-slop detect 稿子.md
 stop-slop candidates 稿子.md --out c.json   # 语义层候选，配合 references/semantic.md
-stop-slop compare 改前.md 改后.md
+stop-slop compare 改前.md 改后.md --strict   # 另查 YAML / 代码 / 标题 / 链接 / 表格有没有被改动
 stop-slop detect --shots shots.json --json  # 视频旁白 / 口播：[{"id":"hook","text":"…"}]，命中带镜头 id
 stop-slop candidates --shots shots.json     # 口播语义层候选，每条带 shot，段间接口另带 prev_shot
 ```
+
+检测器报的是"值得看一眼的地方"，不是"这篇是 AI 写的"：在 HC3-Chinese 的真人回答上，82.4% 的篇目至少有一项超线（[tests/hc3](tests/hc3/README.md)）。
 
 默认装到 `~/.local/bin`，可用 `STOP_SLOP_INSTALL_DIR` 改目录、`STOP_SLOP_VERSION=v1.0.0` 指定版本。Windows 到 [Releases](https://github.com/leeguooooo/stop-slop-zh/releases) 下载 zip。也可以从源码装：`cargo install --path cli`。
 
@@ -106,10 +109,10 @@ stop-slop candidates --shots shots.json     # 口播语义层候选，每条带 
 
 - **不要边写边查**。先把想说的写完，再用本 Skill 改写。边写边查会丢失思路。
 - **从 phrases.md 第 1 / 5 / 7 / 10 类开始**：这四类（开场套话 / 程度副词 / 鸡汤收尾 / 价值判断饱和）命中率最高，最快见效。
-- **重灾区是三件套排比**。改写时优先全文搜「，是」「，更是」「既要」「不仅」，命中的位置看一下要不要拆。
-- **35/50 是底线，不是目标**。要让文本读起来像人写的，至少 42+。
+- **三件套排比看信息，不看数量**。全文搜「，是」「，更是」「既要」「不仅」，三项说的是同一个意思才拆，三项各有信息的排比是正常中文。
+- **五维评分是自查用的，不是门槛**。分数低在"实"这一维、而原文确实没有细节时，别为了凑分去补数字。要比较几个版本时再让模型打分。
 - **作者的具体经历是最强武器**。AI 写不出来的不是技巧，是你知道而 AI 不知道的细节。
-- **去具体 ≠ 编具体**。让模型"把抽象换成数字 / 场景"时，务必同时约束它**不许编**——没有真实细节就退回平实陈述或留 `[作者补充]`。否则你会得到一篇没有套话、但数据全是假的稿子，这比 AI 味更糟。
+- **去具体 ≠ 编具体**。让模型"把抽象换成数字 / 场景"时，务必同时约束它**不许编**——没有真实细节就退回平实陈述，自己起草的稿子可以留 `[作者补充]`。否则你会得到一篇没有套话、但数据全是假的稿子，这比 AI 味更糟。
 - **想批量上量，先喂文风**。把自己过去 20–30 篇文章丢给模型，让它提炼成一份"文风 JSON"（常用句长、口头禅、忌用词、人称习惯），之后每次连同待改文本一起给模型，让它照着你的底色改，而不是照 AI 的默认底色改。一次提炼，长期复用。
 
 ## 边界与坦诚

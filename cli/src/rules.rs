@@ -84,6 +84,9 @@ pub struct Item {
     pub ai_ref: Option<String>,
     pub advice: String,
     pub evidence: Option<String>,
+    /// HC3-Chinese 里单篇达到提示线的比例（%）：[人类, GPT-3.5]。命中 ≠ AI 写的，看人类那一栏
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hc3: Option<[f64; 2]>,
     /// 是否达到提示线
     pub flagged: bool,
     pub hits: Vec<Hit>,
@@ -760,6 +763,7 @@ pub fn detect(docs: &[Doc], max_hits: usize) -> Report {
             ai_ref: ai.map(str::to_string),
             advice: advice.to_string(),
             evidence: evidence.map(str::to_string),
+            hc3: hc3_ref(id).map(|(h, a)| [h, a]),
             flagged,
             hits,
         });
@@ -955,4 +959,41 @@ pub fn count_in(src: &str, id: &str) -> usize {
         .find(|i| i.id == id)
         .map(|i| i.count)
         .unwrap_or(0)
+}
+
+/// HC3-Chinese（2022 年的人类回答和 ChatGPT（GPT-3.5）回答，各取 ≥200 汉字的）里，
+/// 单篇本项达到提示线的比例（%）：(人类, GPT-3.5)。人类 2665 篇，GPT-3.5 5585 篇。
+/// 复现：tests/hc3/run.py。
+pub fn hc3_ref(id: &str) -> Option<(f64, f64)> {
+    Some(match id {
+        "R1" => (22.0, 12.3),
+        "R2" => (4.9, 0.8),
+        "R4" => (0.0, 0.0),
+        "R6a" => (0.8, 0.3),
+        "R6b" => (2.9, 19.1),
+        "R6c" => (0.7, 0.5),
+        "R6d" => (0.3, 0.1),
+        "R6e" => (0.6, 0.4),
+        "R3a" => (0.0, 0.0),
+        "R4a" => (0.4, 0.2),
+        "R7a" => (1.5, 0.3),
+        "R10a" => (0.2, 0.1),
+        "R10b" => (0.2, 0.0),
+        "R11" => (0.5, 0.0),
+        "R12a" => (5.4, 4.7),
+        "R12b" => (4.4, 3.2),
+        "R12c" => (0.9, 6.6),
+        "R3" => (3.0, 7.8),
+        "R2b" => (0.3, 0.1),
+        "R12d" => (7.2, 2.2),
+        "R13a" => (32.0, 36.7),
+        "R13b" => (31.1, 51.0),
+        "R13c" => (5.5, 11.2),
+        "R14" => (12.7, 8.7),
+        "F1" => (2.8, 0.4),
+        "F2" => (18.8, 1.8),
+        "F3" => (5.2, 0.0),
+        "F4" => (6.8, 0.2),
+        _ => return None,
+    })
 }

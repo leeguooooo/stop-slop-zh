@@ -1,6 +1,7 @@
 //! stop-slop：中文 AI 写作痕迹检测 CLI（stop-slop-zh 配套，只检测不改写）。
 
 mod candidates;
+mod guard;
 mod report;
 mod rules;
 mod text;
@@ -16,12 +17,13 @@ const USAGE: &str = "stop-slop —— 中文 AI 写作痕迹检测（只检测�
   stop-slop detect --shots <shots.json|-> [--json] [--max-hits N]
   stop-slop candidates <文件> [--out 路径]
   stop-slop candidates --shots <shots.json|-> [--out 路径]
-  stop-slop compare <改前> <改后> [--json]
+  stop-slop compare <改前> <改后> [--json] [--strict]
   stop-slop --version
 
 detect      分级报告：A 机械改 / B 建议改 / F 标点指纹 / C 只报告 / X 慎改 / H 人审
 candidates  抽语义层候选 JSON（rename / cohesion / colon / iso3），交给模型按判据填标签
-compare     改前改后各检测一遍，输出 Markdown 对比表
+compare     改前改后各检测一遍，输出 Markdown 对比表；两边都是文件时另查结构保护
+            （YAML / 代码 / 标题 / 链接 / 表格 / 显式 id），--strict 时不通过返回非零
 
 --shots     口播模式：输入 JSON 数组 [{id, text}, ...]（'-' 读 stdin），
             每个镜头当一段正文检测，命中带 shot 字段；默认列出全部命中
@@ -88,6 +90,7 @@ struct Opts {
     max_hits: Option<usize>,
     out: Option<String>,
     shots: Option<String>,
+    strict: bool,
 }
 
 /// 口播模式输入：镜头旁白列表。
@@ -148,11 +151,13 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         max_hits: None,
         out: None,
         shots: None,
+        strict: false,
     };
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--json" => o.json = true,
+            "--strict" => o.strict = true,
             "--max-hits" => {
                 let v = it.next().ok_or("--max-hits 需要一个数字")?;
                 o.max_hits = Some(v.parse().map_err(|_| format!("--max-hits 不是数字：{v}"))?);
@@ -260,15 +265,31 @@ fn run() -> Result<(), String> {
         "compare" => {
             let o = parse(&args[1..])?;
             let [a, b] = o.pos.as_slice() else {
-                return Err("用法：stop-slop compare <改前> <改后> [--json]".into());
+                return Err("用法：stop-slop compare <改前> <改后> [--json] [--strict]".into());
             };
             let ra = rules::detect(&load(a)?, 0);
             let rb = rules::detect(&load(b)?, 0);
+            let g = if Path::new(a).is_file() && Path::new(b).is_file() {
+                let read = |p: &str| {
+                    std::fs::read(p)
+                        .map(|b| String::from_utf8_lossy(&b).into_owned())
+                        .map_err(|e| format!("读取 {p} 失败：{e}"))
+                };
+                Some(guard::check(&read(a)?, &read(b)?))
+            } else {
+                None
+            };
             if o.json {
-                let v = serde_json::json!({"before": ra, "after": rb});
+                let v = serde_json::json!({"before": ra, "after": rb, "structure_guard": g});
                 println!("{}", serde_json::to_string_pretty(&v).unwrap());
             } else {
                 print!("{}", report::compare_md(&ra, &rb));
+                if let Some(g) = &g {
+                    print!("{}", guard::markdown(g));
+                }
+            }
+            if o.strict && g.as_ref().is_some_and(|g| !g.passed) {
+                return Err("结构保护检查未通过".into());
             }
             Ok(())
         }
